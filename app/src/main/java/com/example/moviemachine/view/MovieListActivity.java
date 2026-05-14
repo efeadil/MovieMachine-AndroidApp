@@ -1,5 +1,9 @@
 package com.example.moviemachine.view;
 
+/**
+ * Bu sınıf, ana film listesi ekranını yönetir.
+ * Popüler ve kullanıcı tercihlerine göre önerilen filmleri listeler.
+ */
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -62,10 +66,12 @@ public class MovieListActivity extends AppCompatActivity {
     }
 
     private void loadAllMovies() {
+        // Filmler yüklenirken kullanıcıya bir ilerleme çubuğu (ProgressBar) gösteriyoruz.
         pbLoading.setVisibility(View.VISIBLE);
         String apiKey = com.example.moviemachine.BuildConfig.TMDB_API_KEY;
 
-        // 1. AŞAMA: POPÜLER FİLMLERİ GETİR (Tür filtresi yok)
+        // 1. AŞAMA: POPÜLER FİLMLERİ GETİR. Tür filtresi boş ("") gönderilir.
+        // Step 1: Fetch Popular Movies without any genre filter.
         controller.fetchMovies(apiKey, "", new MovieController.MovieCallback() {
             @Override
             public void onSuccess(List<Movie> movies) {
@@ -73,7 +79,8 @@ public class MovieListActivity extends AppCompatActivity {
                     adapterPopular = new MovieAdapter(MovieListActivity.this, movies, movie -> openDetailActivity(movie));
                     rvPopular.setAdapter(adapterPopular);
 
-                    // 2. AŞAMA: Popülerler gelince hemen ardından ÖNERİLENLERİ getir
+                    // 2. AŞAMA: Popülerler gelince hemen ardından ÖNERİLENLERİ getiriyoruz.
+                    // Step 2: Once popular movies are fetched, load recommendations.
                     loadRecommendedMovies(apiKey);
                 });
             }
@@ -89,9 +96,13 @@ public class MovieListActivity extends AppCompatActivity {
     }
 
     private void loadRecommendedMovies(String apiKey) {
+        // Kullanıcının Onboarding ekranında seçtiği türleri hafızadan okuyoruz.
+        // Data Retrieval: Reading selected genre preferences to filter recommendations.
         SharedPreferences prefs = getSharedPreferences("MovieMachinePrefs", MODE_PRIVATE);
         StringBuilder genreIds = new StringBuilder();
         
+        // TMDB API'sinin beklediği tür ID'lerini (Genre ID) virgülle ayırarak hazırlıyoruz.
+        // Mapping boolean preferences to TMDB Genre IDs.
         if (prefs.getBoolean("PREF_ACTION", false)) genreIds.append("28,");
         if (prefs.getBoolean("PREF_COMEDY", false)) genreIds.append("35,");
         if (prefs.getBoolean("PREF_SCIFI", false)) genreIds.append("878,");

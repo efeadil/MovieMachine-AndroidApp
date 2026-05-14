@@ -1,5 +1,9 @@
 package com.example.moviemachine.view;
 
+/**
+ * Bu sınıf, seçilen bir filmin veya dizinin detaylarını gösterir.
+ * Oyuncu kadrosunu listeler ve izleme bağlantısını (IMDb) açar.
+ */
 import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Button;
@@ -38,14 +42,17 @@ public class MovieDetailActivity extends AppCompatActivity {
 
         controller = new MovieController();
 
-        // 1. Intent ile gelen temel verileri al
+        // 1. Intent ile gelen temel verileri al. 
+        // Bu veriler bir önceki sayfadan hızlıca aktarılır.
         int movieId = getIntent().getIntExtra("MOVIE_ID", -1);
         String title = getIntent().getStringExtra("MOVIE_TITLE");
         String overview = getIntent().getStringExtra("MOVIE_OVERVIEW");
         String posterPath = getIntent().getStringExtra("MOVIE_POSTER");
         double rating = getIntent().getDoubleExtra("MOVIE_RATING", 0.0);
 
-        // YENİ: Tıklanan öğenin türünü (movie veya tv) alıyoruz
+        // ÖNEMLİ: Tıklanan öğenin türünü (movie veya tv) alıyoruz.
+        // Bu bilgi, doğru API uç noktasına (endpoint) gitmek için kritiktir.
+        // IMPORTANT: Determining if it's a movie or a TV show to hit the correct API endpoint.
         String mediaType = getIntent().getStringExtra("MEDIA_TYPE");
         if (mediaType == null) {
             mediaType = "movie"; // Eğer boş gelirse varsayılan olarak film sayıyoruz
@@ -60,11 +67,12 @@ public class MovieDetailActivity extends AppCompatActivity {
             Glide.with(this).load("https://image.tmdb.org/t/p/w500" + posterPath).into(imgDetailPoster);
         }
 
-        // 2. Film/Dizi ID'si varsa Gerçek Oyuncuları ve Doğru IMDb Linkini çek
+        // 2. Film/Dizi ID'si varsa Gerçek Oyuncuları ve Doğru IMDb Linkini çek.
+        // API'den detaylı bilgi almak için asenkron (arka plan) çağrı yapıyoruz.
         if (movieId != -1) {
             String apiKey = com.example.moviemachine.BuildConfig.TMDB_API_KEY;
 
-            // YENİ: controller'a artık 'mediaType' bilgisini de gönderiyoruz ki dizi ise doğru kapıyı çalsın!
+            // Media type bilgisi sayesinde dizi ise oyuncuları ve IMDb ID'sini farklı yerden alıyoruz.
             controller.fetchMovieDetailsAndCast(movieId, mediaType, apiKey, new MovieController.MovieDetailCallback() {
                 @Override
                 public void onSuccess(String imdbId, List<CastMember> cast) {
@@ -74,10 +82,11 @@ public class MovieDetailActivity extends AppCompatActivity {
                         CastAdapter castAdapter = new CastAdapter(MovieDetailActivity.this, cast);
                         rvCast.setAdapter(castAdapter);
 
-                        // Watch Butonuna Uygulama İçi Video Oynatıcıyı Bağla
+                        // İzle Butonuna tıklandığında video oynatıcıyı başlatıyoruz.
+                        // Playback Logic: Constructing the streaming URL and launching our custom black-themed player.
                         btnWatch.setOnClickListener(v -> {
                             if (imdbId != null && !imdbId.isEmpty()) {
-                                // Bulunan gerçek IMDb ID'si ile linki oluştur
+                                // Bulunan gerçek IMDb ID'si ile izleme linkini oluştur.
                                 String videoUrl = "https://www.playimdb.com/title/" + imdbId + "/";
 
                                 // Uygulamanın içindeki simsiyah video oynatıcı sayfasına git

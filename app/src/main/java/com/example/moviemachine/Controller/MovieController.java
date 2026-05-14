@@ -14,15 +14,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Controller class managing API communication and data processing.
- * Handles network operations asynchronously to prevent UI blocking.
+ * Bu sınıf, TMDB API ile olan tüm veri alışverişini yöneten kontrolcü sınıfıdır.
+ * İnternetten film bilgilerini çeker, JSON verilerini modellerimize dönüştürür.
  */
 public class MovieController {
 
-    // Executor for asynchronous operations (Arka plan islemleri icin)
+    // Arka plan işlemleri için tek bir iş parçacığı (thread) kullanıyoruz.
+    // We use a single thread for background operations to keep things simple.
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 
-    // Callback interface for UI communication (Arayuz ile haberlesme arayuzu)
+    // Arayüz (UI) ile haberleşmek için başarı ve hata durumlarını bildiren callback.
     public interface MovieCallback {
         void onSuccess(List<Movie> movies);
         void onError(String errorMessage);
@@ -36,15 +37,17 @@ public class MovieController {
         executorService.execute(() -> {
             HttpURLConnection connection = null;
             try {
-                // Constructing the URL with genres and API key
+                // TMDB API adresini hazırlıyoruz. Kullanıcının seçtiği türlere (genres) göre filtreleme yapıyoruz.
                 String urlString = "https://api.themoviedb.org/3/discover/movie?api_key=" + apiKey +
                         "&language=en-US&sort_by=popularity.desc&with_genres=" + genreIds;
                 URL url = new URL(urlString);
 
+                // Bağlantıyı açıyoruz ve zaman aşımı sürelerini belirliyoruz.
                 connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("GET");
-                connection.setConnectTimeout(5000); // 5 seconds timeout
+                connection.setConnectTimeout(5000); // 5 saniye içinde cevap gelmezse iptal et
 
+                // İstek başarılıysa (HTTP 200), gelen veriyi okumaya başlıyoruz.
                 if (connection.getResponseCode() == HttpURLConnection.HTTP_OK) {
                     BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
                     StringBuilder response = new StringBuilder();
@@ -52,7 +55,8 @@ public class MovieController {
                     while ((line = reader.readLine()) != null) response.append(line);
                     reader.close();
 
-                    // JSON Parsing (JSON Verisi ayristirma)
+                    // Gelen karmaşık JSON metnini ayıklayıp Movie nesnesi listesine dönüştürüyoruz.
+                    // Important: Converting raw JSON response to a structured List of Movie objects.
                     List<Movie> movies = new ArrayList<>();
                     JSONObject jsonResponse = new JSONObject(response.toString());
                     JSONArray results = jsonResponse.getJSONArray("results");
@@ -67,15 +71,17 @@ public class MovieController {
                                 obj.getDouble("vote_average")
                         ));
                     }
+                    // Veri hazır olunca başarı bilgisini gönderiyoruz.
                     callback.onSuccess(movies);
                 } else {
-                    callback.onError("Invalid API response: " + connection.getResponseCode());
+                    callback.onError("Sunucu hatası: " + connection.getResponseCode());
                 }
 
             } catch (Exception e) {
-                // Proper Exception Handling for network loss (Baglanti hatasi yönetimi)
+                // İnternet olmaması veya API hataları gibi durumlarda burası çalışır.
+                // Proper Exception Handling: Network loss or API errors are handled here.
                 Log.e("MovieController", "Network Error", e);
-                callback.onError("Network connection lost. Please check your internet!");
+                callback.onError("İnternet bağlantınızı kontrol edin!");
             } finally {
                 if (connection != null) connection.disconnect();
             }
@@ -115,15 +121,16 @@ public class MovieController {
 
                     JSONObject jsonResponse = new JSONObject(response.toString());
 
-                    // GERÇEK IMDb ID'sini ALMA MANTIĞI:
+                    // Önemli: IMDb ID'sini alma mantığı film ve dizi için farklıdır!
+                    // Very Important: IMDb ID retrieval logic differs for movies and TV series!
                     String imdbId = "";
                     if ("tv".equals(mediaType)) {
-                        // Dizilerde IMDb ID'si external_ids içindedir
+                        // Dizilerde IMDb ID'si direkt gelmez, 'external_ids' içinden alınmalıdır.
                         if (jsonResponse.has("external_ids")) {
                             imdbId = jsonResponse.getJSONObject("external_ids").optString("imdb_id", "");
                         }
                     } else {
-                        // Filmlerde direkt ana menüdedir
+                        // Filmlerde IMDb ID'si ana nesne içindedir.
                         imdbId = jsonResponse.optString("imdb_id", "");
                     }
 

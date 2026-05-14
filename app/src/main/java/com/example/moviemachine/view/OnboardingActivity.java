@@ -1,5 +1,9 @@
 package com.example.moviemachine.view;
 
+/**
+ * Bu sınıf, kullanıcının sevdiği film türlerini seçtiği ekranı yönetir.
+ * Seçilen tercihler SharedPreferences'a kaydedilir.
+ */
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -28,7 +32,8 @@ public class OnboardingActivity extends AppCompatActivity {
         btnSavePreferences = findViewById(R.id.btnSavePreferences);
 
         btnSavePreferences.setOnClickListener(v -> {
-            // Seçimleri hafızaya kaydet
+            // Kullanıcının seçtiği türleri (preferences) telefonun hafızasına (SharedPreferences) kaydediyoruz.
+            // Persistence: Storing user genre preferences locally.
             SharedPreferences prefs = getSharedPreferences("MovieMachinePrefs", MODE_PRIVATE);
             SharedPreferences.Editor editor = prefs.edit();
 
@@ -40,12 +45,17 @@ public class OnboardingActivity extends AppCompatActivity {
             editor.putBoolean("PREF_ROMANCE", cbRomance.isChecked());
             editor.apply();
 
+            // Başarıyla kaydedildiğine dair kullanıcıyı bilgilendiriyoruz.
             Toast.makeText(this, getString(R.string.preferences_saved), Toast.LENGTH_SHORT).show();
 
-            // Ana ekrana git
+            // Kayıt sonrası asıl içerik sayfasına (Film Listesi) yönlendiriyoruz.
+            // Flow: After saving, redirecting to the main Movie List activity.
             Intent intent = new Intent(OnboardingActivity.this, MovieListActivity.class);
             startActivity(intent);
-            finish(); // Geri tuşuna basıldığında bu ekrana geri dönülmesini engelle
+            
+            // Finish() komutu sayesinde bu ekran "back stack"ten silinir. Geri basınca login ekranına dönülmez.
+            // Stack Management: Removing this activity from stack so user can't return via back button.
+            finish();
         });
     }
 }

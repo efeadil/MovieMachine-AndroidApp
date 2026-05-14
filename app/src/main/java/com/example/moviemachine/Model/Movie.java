@@ -1,5 +1,9 @@
 package com.example.moviemachine.Model;
 
+/**
+ * Bu sınıf, bir film veya diziye ait verileri tutan model sınıfıdır.
+ * TMDB'den gelen başlık, özet, afiş yolu ve puan gibi bilgileri saklar.
+ */
 public class Movie {
     private int id;
     private String title;
@@ -21,6 +25,8 @@ public class Movie {
     }
 
     // --- GETTER VE SETTER METOTLARI ---
+    // Bu metotlar verileri sınıfa kontrollü bir şekilde yazmak ve okumak için kullanılır.
+    // Encapsulation: Using getters and setters to access private fields safely.
 
     public int getId() { return id; }
     public String getTitle() { return title; }

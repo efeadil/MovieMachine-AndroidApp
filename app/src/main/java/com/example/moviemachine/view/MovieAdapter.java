@@ -1,5 +1,9 @@
 package com.example.moviemachine.view;
 
+/**
+ * Bu sınıf, film listelerini (RecyclerView) doldurmak için kullanılır.
+ * Her bir film kartının tasarımını ve tıklama olaylarını yönetir.
+ */
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -43,13 +47,15 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
         holder.tvTitle.setText(movie.getTitle());
         holder.tvRating.setText(movie.getVoteAverage() + "%");
 
-        // Glide ile TMDB afisini yukleme (Image loading)
+        // Glide kütüphanesi ile internetteki afişi (poster) ImageView içine yüklüyoruz.
+        // Efficient Image Loading: Glide handles caching and memory management.
         String imageUrl = "https://image.tmdb.org/t/p/w500" + movie.getPosterPath();
         Glide.with(context)
                 .load(imageUrl)
                 .into(holder.imgPoster);
 
-        // Karta tiklandiginda tetiklenecek olay
+        // Karta tıklandığında listedeki o nesneye ait detay sayfasına gitmek için tetikleyici.
+        // Click Listener: Triggering the callback with the selected movie object.
         holder.itemView.setOnClickListener(v -> listener.onItemClick(movie));
     }
 

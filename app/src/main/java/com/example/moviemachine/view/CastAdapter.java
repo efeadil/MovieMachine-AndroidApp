@@ -1,5 +1,9 @@
 package com.example.moviemachine.view;
 
+/**
+ * Bu sınıf, film detay sayfasındaki oyuncu kadrosunu listeler.
+ * Oyuncuların isimlerini ve profil fotoğraflarını RecyclerView içinde gösterir.
+ */
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;

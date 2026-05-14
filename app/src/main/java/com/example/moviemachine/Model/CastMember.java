@@ -1,5 +1,9 @@
 package com.example.moviemachine.Model;
 
+/**
+ * Bu sınıf, bir filmdeki oyuncu bilgilerini tutan model sınıfıdır.
+ * Oyuncunun ismini ve profil fotoğrafının yolunu saklar.
+ */
 public class CastMember {
     private String name;
     private String profilePath;

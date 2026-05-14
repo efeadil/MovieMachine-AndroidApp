@@ -1,4 +1,9 @@
 package com.example.moviemachine.view;
+
+/**
+ * Bu sınıf, uygulamanın giriş (Login) ekranını yönetir.
+ * Kullanıcıdan isim alır ve Onboarding ekranına yönlendirir.
+ */
 import android.content.Intent;
 import android.os.Bundle;
 import android.widget.Button;
@@ -24,6 +29,8 @@ public class MainActivity extends AppCompatActivity {
 
         btnLogin.setOnClickListener(v -> {
             String name = etUsername.getText().toString().trim();
+            // İsim alanı boş mu kontrol ediyoruz. Boşsa hata mesajı gösterilir.
+            // Validation: Checking if name is empty before proceeding.
             if (name.isEmpty()) {
                 etUsername.setError(getString(R.string.error_name_required));
             } else {
@@ -35,16 +42,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startNextActivity(String name) {
-        // 1. Kullaniciya karsilama mesaji goster
+        // 1. Kullanıcıya hoş geldin mesajını strings.xml'den çekerek göster.
+        // Localization: Showing a welcome toast with the user's name.
         Toast.makeText(this, getString(R.string.welcome_toast, name), Toast.LENGTH_SHORT).show();
 
-        // 2. OnboardingActivity sayfasina gecisi baslat (Intent)
+        // 2. Bir sonraki ekran olan tür seçim sayfasına geçiş yapıyoruz.
+        // Navigation: Moving to OnboardingActivity (Genre selection).
         Intent intent = new Intent(MainActivity.this, OnboardingActivity.class);
 
-        // 3. Kullanicinin girdigi ismi diger sayfaya tasi
+        // 3. Kullanıcı adını 'Intent extra' olarak bir sonraki aktiviteye paslıyoruz.
+        // Data Passing: Sending username to the next activity.
         intent.putExtra("USER_NAME", name);
 
-        // 4. Ikinci sayfayi ac
+        // 4. Yeni aktiviteyi (ekranı) başlat.
         startActivity(intent);
     }
 }
