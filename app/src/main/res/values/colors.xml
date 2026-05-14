@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="dark_navy">#0D1B2A</color>
+    <color name="card_bg">#132035</color>
+    <color name="tmdb_green">#21D07A</color>
+    <color name="text_secondary">#A0B4C8</color>
+</resources>
