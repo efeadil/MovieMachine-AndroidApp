@@ -1,8 +1,9 @@
 package com.example.moviemachine.Model;
 
 /**
- * Bu sınıf, bir film veya diziye ait verileri tutan model sınıfıdır.
- * TMDB'den gelen başlık, özet, afiş yolu ve puan gibi bilgileri saklar.
+ * Model Class (MVC - M)
+ * EN: Represents a movie or TV show object containing basic info from TMDB.
+ * TR: Bir film veya diziye ait verileri tutan model sınıfıdır.
  */
 public class Movie {
     private int id;
@@ -10,12 +11,8 @@ public class Movie {
     private String overview;
     private String posterPath;
     private double voteAverage;
+    private String mediaType = "movie";
 
-    // Yeni eklediğimiz özellikler
-    private String imdbId;
-    private String mediaType = "movie"; // Varsayılan olarak hep film sayıyoruz
-
-    // Constructor (Yapıcı Metod)
     public Movie(int id, String title, String overview, String posterPath, double voteAverage) {
         this.id = id;
         this.title = title;
@@ -24,18 +21,15 @@ public class Movie {
         this.voteAverage = voteAverage;
     }
 
-    // --- GETTER VE SETTER METOTLARI ---
-    // Bu metotlar verileri sınıfa kontrollü bir şekilde yazmak ve okumak için kullanılır.
-    // Encapsulation: Using getters and setters to access private fields safely.
+    // --- GETTER AND SETTER METHODS ---
+    // EN: Encapsulation is used to access private fields safely.
+    // TR: Verilere güvenli erişim için kapsülleme (encapsulation) kullanılmıştır.
 
     public int getId() { return id; }
     public String getTitle() { return title; }
     public String getOverview() { return overview; }
     public String getPosterPath() { return posterPath; }
     public double getVoteAverage() { return voteAverage; }
-
-    public String getImdbId() { return imdbId; }
-    public void setImdbId(String imdbId) { this.imdbId = imdbId; }
 
     public String getMediaType() { return mediaType; }
     public void setMediaType(String mediaType) { this.mediaType = mediaType; }

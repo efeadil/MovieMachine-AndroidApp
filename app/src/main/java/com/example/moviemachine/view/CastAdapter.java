@@ -1,9 +1,5 @@
 package com.example.moviemachine.view;
 
-/**
- * Bu sınıf, film detay sayfasındaki oyuncu kadrosunu listeler.
- * Oyuncuların isimlerini ve profil fotoğraflarını RecyclerView içinde gösterir.
- */
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,6 +13,11 @@ import com.example.moviemachine.Model.CastMember;
 import com.example.moviemachine.R;
 import java.util.List;
 
+/**
+ * Adapter Class (MVC - V)
+ * EN: Displays a list of cast members in a RecyclerView.
+ * TR: Oyuncu kadrosunu bir liste (RecyclerView) içerisinde gösterir.
+ */
 public class CastAdapter extends RecyclerView.Adapter<CastAdapter.CastViewHolder> {
 
     private Context context;
@@ -39,12 +40,10 @@ public class CastAdapter extends RecyclerView.Adapter<CastAdapter.CastViewHolder
         CastMember actor = castList.get(position);
         holder.tvCastName.setText(actor.getName());
 
-        // TMDB'den GERÇEK oyuncu fotoğrafını çekiyoruz
         if (actor.getProfilePath() != null && !actor.getProfilePath().equals("null")) {
             String imageUrl = "https://image.tmdb.org/t/p/w200" + actor.getProfilePath();
             Glide.with(context).load(imageUrl).circleCrop().into(holder.imgCastProfile);
         } else {
-            // Eğer oyuncunun resmi yoksa boş bir ikon göster
             Glide.with(context).load(R.drawable.ic_person).circleCrop().into(holder.imgCastProfile);
         }
     }

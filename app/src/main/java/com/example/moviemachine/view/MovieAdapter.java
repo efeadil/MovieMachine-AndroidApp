@@ -1,9 +1,5 @@
 package com.example.moviemachine.view;
 
-/**
- * Bu sınıf, film listelerini (RecyclerView) doldurmak için kullanılır.
- * Her bir film kartının tasarımını ve tıklama olaylarını yönetir.
- */
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,13 +13,17 @@ import com.example.moviemachine.R;
 import com.example.moviemachine.Model.Movie;
 import java.util.List;
 
+/**
+ * Adapter Class (MVC - V)
+ * EN: Handles the display of movie items in RecyclerViews across the app.
+ * TR: Film öğelerinin RecyclerView içinde görüntülenmesini sağlar.
+ */
 public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHolder> {
 
-    private List<Movie> movies;
-    private Context context;
-    private OnItemClickListener listener;
+    private final List<Movie> movies;
+    private final Context context;
+    private final OnItemClickListener listener;
 
-    // Tiklama islemleri icin Arayuz (Interface)
     public interface OnItemClickListener {
         void onItemClick(Movie movie);
     }
@@ -44,25 +44,13 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
     @Override
     public void onBindViewHolder(@NonNull MovieViewHolder holder, int position) {
         Movie movie = movies.get(position);
-        holder.tvTitle.setText(movie.getTitle());
-        holder.tvRating.setText(movie.getVoteAverage() + "%");
-
-        // Glide kütüphanesi ile internetteki afişi (poster) ImageView içine yüklüyoruz.
-        // Efficient Image Loading: Glide handles caching and memory management.
-        String imageUrl = "https://image.tmdb.org/t/p/w500" + movie.getPosterPath();
-        Glide.with(context)
-                .load(imageUrl)
-                .into(holder.imgPoster);
-
-        // Karta tıklandığında listedeki o nesneye ait detay sayfasına gitmek için tetikleyici.
-        // Click Listener: Triggering the callback with the selected movie object.
-        holder.itemView.setOnClickListener(v -> listener.onItemClick(movie));
+        holder.bind(movie, listener);
     }
 
     @Override
     public int getItemCount() { return movies.size(); }
 
-    static class MovieViewHolder extends RecyclerView.ViewHolder {
+    class MovieViewHolder extends RecyclerView.ViewHolder {
         TextView tvTitle, tvRating;
         ImageView imgPoster;
 
@@ -71,6 +59,18 @@ public class MovieAdapter extends RecyclerView.Adapter<MovieAdapter.MovieViewHol
             tvTitle = itemView.findViewById(R.id.textTitle);
             tvRating = itemView.findViewById(R.id.textRating);
             imgPoster = itemView.findViewById(R.id.imgPoster);
+        }
+
+        public void bind(Movie movie, OnItemClickListener listener) {
+            tvTitle.setText(movie.getTitle());
+            tvRating.setText(String.format("%.1f", movie.getVoteAverage()));
+            
+            Glide.with(context)
+                .load("https://image.tmdb.org/t/p/w500" + movie.getPosterPath())
+                .placeholder(R.drawable.ic_launcher_background)
+                .into(imgPoster);
+
+            itemView.setOnClickListener(v -> listener.onItemClick(movie));
         }
     }
 }

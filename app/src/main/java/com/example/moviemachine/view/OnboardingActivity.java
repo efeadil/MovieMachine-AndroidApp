@@ -1,61 +1,55 @@
 package com.example.moviemachine.view;
 
-/**
- * Bu sınıf, kullanıcının sevdiği film türlerini seçtiği ekranı yönetir.
- * Seçilen tercihler SharedPreferences'a kaydedilir.
- */
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import com.example.moviemachine.R;
 
+/**
+ * View Layer (Onboarding Screen)
+ * EN: Collects user genre preferences and passes them to the main movie list.
+ * TR: Kullanıcı tercihlerini (türleri) toplar ve film listesi ekranına iletir.
+ */
 public class OnboardingActivity extends AppCompatActivity {
 
     private CheckBox cbAction, cbComedy, cbSciFi, cbHorror, cbDrama, cbRomance;
-    private Button btnSavePreferences;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_onboarding);
 
+        initViews();
+
+        findViewById(R.id.btnSavePreferences).setOnClickListener(v -> continueToList());
+    }
+
+    private void initViews() {
         cbAction = findViewById(R.id.cbAction);
         cbComedy = findViewById(R.id.cbComedy);
         cbSciFi = findViewById(R.id.cbSciFi);
         cbHorror = findViewById(R.id.cbHorror);
         cbDrama = findViewById(R.id.cbDrama);
         cbRomance = findViewById(R.id.cbRomance);
-        btnSavePreferences = findViewById(R.id.btnSavePreferences);
+    }
 
-        btnSavePreferences.setOnClickListener(v -> {
-            // Kullanıcının seçtiği türleri (preferences) telefonun hafızasına (SharedPreferences) kaydediyoruz.
-            // Persistence: Storing user genre preferences locally.
-            SharedPreferences prefs = getSharedPreferences("MovieMachinePrefs", MODE_PRIVATE);
-            SharedPreferences.Editor editor = prefs.edit();
+    /**
+     * EN: Gathers selected genre IDs and navigates to MovieListActivity.
+     * TR: Seçilen türlerin ID'lerini toplar ve MovieListActivity ekranına geçer.
+     */
+    private void continueToList() {
+        StringBuilder ids = new StringBuilder();
+        if (cbAction.isChecked()) ids.append("28,");
+        if (cbComedy.isChecked()) ids.append("35,");
+        if (cbSciFi.isChecked()) ids.append("878,");
+        if (cbHorror.isChecked()) ids.append("27,");
+        if (cbDrama.isChecked()) ids.append("18,");
+        if (cbRomance.isChecked()) ids.append("10749,");
 
-            editor.putBoolean("PREF_ACTION", cbAction.isChecked());
-            editor.putBoolean("PREF_COMEDY", cbComedy.isChecked());
-            editor.putBoolean("PREF_SCIFI", cbSciFi.isChecked());
-            editor.putBoolean("PREF_HORROR", cbHorror.isChecked());
-            editor.putBoolean("PREF_DRAMA", cbDrama.isChecked());
-            editor.putBoolean("PREF_ROMANCE", cbRomance.isChecked());
-            editor.apply();
-
-            // Başarıyla kaydedildiğine dair kullanıcıyı bilgilendiriyoruz.
-            Toast.makeText(this, getString(R.string.preferences_saved), Toast.LENGTH_SHORT).show();
-
-            // Kayıt sonrası asıl içerik sayfasına (Film Listesi) yönlendiriyoruz.
-            // Flow: After saving, redirecting to the main Movie List activity.
-            Intent intent = new Intent(OnboardingActivity.this, MovieListActivity.class);
-            startActivity(intent);
-            
-            // Finish() komutu sayesinde bu ekran "back stack"ten silinir. Geri basınca login ekranına dönülmez.
-            // Stack Management: Removing this activity from stack so user can't return via back button.
-            finish();
-        });
+        Intent intent = new Intent(this, MovieListActivity.class);
+        intent.putExtra("SELECTED_GENRES", ids.toString());
+        startActivity(intent);
+        finish();
     }
 }
