@@ -46,7 +46,7 @@ public class SearchActivity extends AppCompatActivity {
         findViewById(R.id.btnDoSearch).setOnClickListener(v -> {
             String query = etSearchQuery.getText().toString().trim();
             if (!query.isEmpty()) performSearch(query);
-            else Toast.makeText(this, R.string.please_enter_movie_name, Toast.LENGTH_SHORT).show();
+            else etSearchQuery.setError(getString(R.string.please_enter_movie_name));
         });
     }
 

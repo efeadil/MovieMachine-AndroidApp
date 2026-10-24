@@ -1,32 +1,62 @@
 package com.example.moviemachine;
 
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
 import com.example.moviemachine.Controller.MovieController;
 import com.example.moviemachine.Model.Movie;
-import org.junit.Test;
+
 import java.util.List;
-import static org.junit.Assert.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import org.junit.Test;
+import org.junit.runner.RunWith;
+
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 /**
- * EN: Integration Test that verifies API data flow using real/sample data.
- * TR: Gerçek veya örnek veriler kullanarak API veri akışını doğrulayan Entegrasyon Testi.
+ * EN: Verifies the complete controller-to-TMDB API flow on a connected device.
+ * TR: Bağlı cihazda controller ile TMDB API arasındaki gerçek akışı doğrular.
  */
+@RunWith(AndroidJUnit4.class)
 public class MovieApiIntegrationTest {
 
     @Test
-    public void testRealApiFetch_ReturnsData() {
+    public void testRealApiFetch_ReturnsMovies() throws InterruptedException {
+        assertFalse(
+                "tmdb_api_key must be set in local.properties for this integration test.",
+                BuildConfig.TMDB_API_KEY.trim().isEmpty());
+
         MovieController controller = new MovieController();
-        
-        // EN: Try to parse data from a sample API response.
-        // TR: Örnek bir API cevabından verileri ayrıştırmayı dener.
-        List<Movie> movies = controller.parseMoviesFromJson(fetchSampleJson()); 
+        CountDownLatch callbackLatch = new CountDownLatch(1);
+        AtomicReference<List<Movie>> result = new AtomicReference<>();
+        AtomicReference<String> error = new AtomicReference<>();
 
-        assertNotNull("Data from API should not be null!", movies);
-        assertTrue("Movie list should not be empty!", movies.size() > 0);
-        
-        assertFalse(movies.get(0).getTitle().isEmpty());
-    }
+        controller.fetchMovies(BuildConfig.TMDB_API_KEY, "28", new MovieController.MovieCallback() {
+            @Override
+            public void onSuccess(List<Movie> movies) {
+                result.set(movies);
+                callbackLatch.countDown();
+            }
 
-    private String fetchSampleJson() {
-        return "{\"results\": [{\"id\": 1, \"title\": \"Integration Test Movie\", \"overview\": \"Success\", \"poster_path\": \"/test.jpg\", \"vote_average\": 10.0}]}";
+            @Override
+            public void onError(String errorMessage) {
+                error.set(errorMessage);
+                callbackLatch.countDown();
+            }
+        });
+
+        assertTrue("TMDB request did not finish within 45 seconds.",
+                callbackLatch.await(45, TimeUnit.SECONDS));
+        assertNull("TMDB request failed: " + error.get(), error.get());
+        assertNotNull("TMDB success callback returned no movie list.", result.get());
+        assertFalse("TMDB returned no movies for the action genre.", result.get().isEmpty());
+        assertTrue("Returned movie ID must be positive.", result.get().get(0).getId() > 0);
+        assertFalse("Returned movie title must not be empty.",
+                result.get().get(0).getTitle().trim().isEmpty());
     }
 }

@@ -26,7 +26,7 @@ import java.util.List;
 public class MovieDetailActivity extends AppCompatActivity {
 
     private ImageView imgDetailPoster;
-    private TextView tvDetailTitle, tvDetailRating, tvDetailOverview;
+    private TextView tvDetailTitle, tvDetailRating, tvDetailOverview, tvDetailReview;
     private Button btnWatch, btnOpenPrime;
     private RecyclerView rvCast;
     private MovieController controller;
@@ -47,6 +47,7 @@ public class MovieDetailActivity extends AppCompatActivity {
         tvDetailTitle = findViewById(R.id.tvDetailTitle);
         tvDetailRating = findViewById(R.id.tvDetailRating);
         tvDetailOverview = findViewById(R.id.tvDetailOverview);
+        tvDetailReview = findViewById(R.id.tvDetailReview);
         btnWatch = findViewById(R.id.btnWatch);
         btnOpenPrime = findViewById(R.id.btnOpenPrime);
         rvCast = findViewById(R.id.rvCast);
@@ -75,16 +76,20 @@ public class MovieDetailActivity extends AppCompatActivity {
 
         controller.fetchMovieDetailsAndCast(movieId, mediaType, BuildConfig.TMDB_API_KEY, new MovieController.MovieDetailCallback() {
             @Override
-            public void onSuccess(String videoUrl, String primeUrl, List<CastMember> cast) {
+            public void onSuccess(String videoUrl, String primeUrl, List<CastMember> cast, String review) {
                 runOnUiThread(() -> {
                     rvCast.setAdapter(new CastAdapter(MovieDetailActivity.this, cast));
+                    tvDetailReview.setText(review);
                     setupButtons(videoUrl, primeUrl);
                 });
             }
 
             @Override
             public void onError(String error) {
-                runOnUiThread(() -> Toast.makeText(MovieDetailActivity.this, error, Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> {
+                    tvDetailReview.setText("Error loading reviews.");
+                    Toast.makeText(MovieDetailActivity.this, error, Toast.LENGTH_SHORT).show();
+                });
             }
         });
     }
@@ -103,10 +108,28 @@ public class MovieDetailActivity extends AppCompatActivity {
             Toast.makeText(this, R.string.error_no_stream_link, Toast.LENGTH_SHORT).show();
             return;
         }
+        Uri uri = Uri.parse(url);
+        if (!isAllowedExternalUrl(uri)) {
+            Toast.makeText(this, errorMessage, Toast.LENGTH_SHORT).show();
+            return;
+        }
         try {
-            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
-        } catch (Exception e) {
+            startActivity(new Intent(Intent.ACTION_VIEW, uri));
+        } catch (android.content.ActivityNotFoundException e) {
             Toast.makeText(this, errorMessage, Toast.LENGTH_SHORT).show();
         }
+    }
+
+    private boolean isAllowedExternalUrl(Uri uri) {
+        String scheme = uri.getScheme();
+        String host = uri.getHost();
+        if (!"https".equalsIgnoreCase(scheme) || host == null) {
+            return false;
+        }
+        return "www.youtube.com".equalsIgnoreCase(host)
+                || "youtube.com".equalsIgnoreCase(host)
+                || "youtu.be".equalsIgnoreCase(host)
+                || "www.primevideo.com".equalsIgnoreCase(host)
+                || "primevideo.com".equalsIgnoreCase(host);
     }
 }

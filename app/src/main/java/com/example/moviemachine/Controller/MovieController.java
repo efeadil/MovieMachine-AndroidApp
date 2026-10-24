@@ -29,17 +29,21 @@ public class MovieController {
     }
 
     public interface MovieDetailCallback {
-        void onSuccess(String videoUrl, String primeUrl, List<CastMember> cast);
+        void onSuccess(String videoUrl, String primeUrl, List<CastMember> cast, String reviews);
         void onError(String errorMessage);
     }
 
-    // --- CORE API METHODS ---
+    // --- CORE API METHODS (Satisfies Requirement #31: Movie Recommendations) ---
 
     /**
      * EN: Fetches movies from TMDB API based on genre filters.
      * TR: TMDB API'den film türlerine göre verileri çeker.
      */
     public void fetchMovies(String apiKey, String genreIds, MovieCallback callback) {
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            callback.onError("API key is missing.");
+            return;
+        }
         String url = "https://api.themoviedb.org/3/discover/movie?api_key=" + apiKey +
                 "&language=en-US&sort_by=popularity.desc&with_genres=" + genreIds;
         executeRequest(url, response -> callback.onSuccess(parseMoviesFromJson(response)), callback::onError);
@@ -50,6 +54,10 @@ public class MovieController {
      * TR: Anahtar kelime kullanarak film araması yapar.
      */
     public void searchMovies(String apiKey, String query, MovieCallback callback) {
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            callback.onError("API key is missing.");
+            return;
+        }
         try {
             String encodedQuery = java.net.URLEncoder.encode(query, "UTF-8");
             String url = "https://api.themoviedb.org/3/search/multi?api_key=" + apiKey + "&query=" + encodedQuery;
@@ -64,8 +72,14 @@ public class MovieController {
      * TR: Belirli bir film veya dizi için detayları, fragmanları ve oyuncu kadrosunu çeker.
      */
     public void fetchMovieDetailsAndCast(int movieId, String mediaType, String apiKey, MovieDetailCallback callback) {
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            callback.onError("API key is missing.");
+            return;
+        }
         String type = ("tv".equals(mediaType)) ? "tv/" : "movie/";
-        String url = "https://api.themoviedb.org/3/" + type + movieId + "?api_key=" + apiKey + "&append_to_response=credits,videos,watch/providers,external_ids";
+        // EN: Added 'reviews' to append_to_response to satisfy Req #31.
+        // TR: 31. maddeyi karşılamak için 'reviews' (yorumlar) eklendi.
+        String url = "https://api.themoviedb.org/3/" + type + movieId + "?api_key=" + apiKey + "&append_to_response=credits,videos,watch/providers,external_ids,reviews";
 
         executeRequest(url, response -> {
             try {
@@ -73,7 +87,8 @@ public class MovieController {
                 String videoUrl = extractTrailerUrl(json);
                 String primeUrl = generatePrimeSearchUrl(json);
                 List<CastMember> cast = extractCast(json);
-                callback.onSuccess(videoUrl, primeUrl, cast);
+                String reviews = extractReviews(json);
+                callback.onSuccess(videoUrl, primeUrl, cast, reviews);
             } catch (Exception e) {
                 callback.onError("Parsing error");
             }
@@ -92,14 +107,22 @@ public class MovieController {
             try {
                 URL url = new URL(urlString);
                 conn = (HttpURLConnection) url.openConnection();
-                if (conn.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                conn.setConnectTimeout(20000);
+                conn.setReadTimeout(30000);
+                conn.setRequestMethod("GET");
+                conn.setDoInput(true);
+
+                int responseCode = conn.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
                     BufferedReader r = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                     StringBuilder res = new StringBuilder();
                     String line;
                     while ((line = r.readLine()) != null) res.append(line);
                     listener.onResponse(res.toString());
+                } else if (responseCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
+                    errorListener.onError("Invalid or missing API key.");
                 } else {
-                    errorListener.onError("Server error: " + conn.getResponseCode());
+                    errorListener.onError("Server error: " + responseCode);
                 }
             } catch (Exception e) {
                 errorListener.onError("Network error: " + e.getMessage());
@@ -133,7 +156,10 @@ public class MovieController {
                     movies.add(m);
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            // EN: In case of parsing error, return the list as is (empty or partially filled).
+            // TR: Ayrıştırma hatası durumunda listeyi olduğu gibi (boş veya kısmen dolu) döndürür.
+        }
         return movies;
     }
 
@@ -163,6 +189,27 @@ public class MovieController {
             cast.add(new CastMember(obj.getString("name"), obj.optString("profile_path", null)));
         }
         return cast;
+    }
+
+    private String extractReviews(JSONObject json) {
+        try {
+            if (json.has("reviews")) {
+                JSONArray reviewsArray = json.getJSONObject("reviews").getJSONArray("results");
+                StringBuilder sb = new StringBuilder();
+                int count = Math.min(reviewsArray.length(), 3);
+                for (int i = 0; i < count; i++) {
+                    String content = reviewsArray.getJSONObject(i).optString("content", "");
+                    // EN: Truncate long reviews to keep them "short"
+                    // TR: Yorumları "kısa" tutmak için belirli bir uzunlukta kesiyoruz
+                    if (content.length() > 120) {
+                        content = content.substring(0, 117) + "...";
+                    }
+                    sb.append("• \"").append(content.trim()).append("\"\n\n");
+                }
+                return sb.length() > 0 ? sb.toString().trim() : "No reviews available.";
+            }
+        } catch (Exception ignored) {}
+        return "No reviews available.";
     }
 
     interface ResponseListener { void onResponse(String response); }

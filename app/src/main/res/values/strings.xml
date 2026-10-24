@@ -33,7 +33,7 @@
     <string name="please_enter_movie_name">Please enter a movie name</string>
     <string name="no_results_found">No results found! 🔍</string>
     <string name="btn_watch_trailer">🎬 Watch Trailer</string>
-    <string name="btn_open_prime">🔵 Watch on Prime</string>
+    <string name="btn_open_prime">🔵 Find on Prime</string>
     <string name="error_no_stream_link">Trailer not found for this title! 🎬</string>
     <string name="rating_format">⭐ %1$.1f / 10</string>
     <string name="title_popular">Popular</string>
