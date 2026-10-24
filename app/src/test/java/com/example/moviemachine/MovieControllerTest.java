@@ -4,7 +4,9 @@ import com.example.moviemachine.Controller.MovieController;
 import com.example.moviemachine.Model.Movie;
 import org.junit.Before;
 import org.junit.Test;
+
 import java.util.List;
+
 import static org.junit.Assert.*;
 
 /**
@@ -43,8 +45,8 @@ public class MovieControllerTest {
         // EN: Tests that the app doesn't crash and uses default values when some fields are missing.
         // TR: Eksik alanlarda uygulamanın çökmediğini ve varsayılan değerleri kullandığını test eder.
         String jsonInput = "{\"results\": [" +
-                "{\"id\": 101, \"title\": \"Broken Movie\"}," + 
-                "{\"name\": \"TV Show\", \"id\": 202}" + 
+                "{\"id\": 101, \"title\": \"Broken Movie\"}," +
+                "{\"name\": \"TV Show\", \"id\": 202}" +
                 "]}";
 
         List<Movie> movies = movieController.parseMoviesFromJson(jsonInput);
@@ -87,5 +89,32 @@ public class MovieControllerTest {
 
         assertNotNull(movies);
         assertTrue(movies.isEmpty());
+    }
+
+    @Test
+    public void testExtractReviews_FormatsCorrectlyAndTruncates() throws Exception {
+        // EN: REAL TEST for Req #31: Verifies that reviews include authors and are truncated if too long.
+        // TR: 31. Madde için GERÇEK TEST: Yorumların yazar içerdiğini ve çok uzunsa kesildiğini doğrular.
+        String longContent = "This is a very long review that should definitely be truncated because it exceeds the one hundred and twenty character limit set in our controller logic for better UI display.";
+        
+        String jsonInput = "{\"reviews\": {\"results\": [" +
+                "{\"author\": \"Adil\", \"content\": \"Amazing movie!\"}," +
+                "{\"author\": \"Efe\", \"content\": \"" + longContent + "\"} " +
+                "]}}";
+        
+        org.json.JSONObject json = new org.json.JSONObject(jsonInput);
+        
+        // Metot artık public, doğrudan erişilebilmeli.
+        String result = movieController.extractReviews(json);
+        
+        assertNotNull("Result should not be null", result);
+        // 1. Check if first review has author
+        assertTrue("Review should contain author name", result.contains("Adil: \"Amazing movie!\""));
+        
+        // 2. Check if long review is truncated (contains ...)
+        assertTrue("Long review should be truncated with ellipses", result.contains("...\""));
+        
+        // 3. Check if bullet point is used
+        assertTrue("Should use bullet points", result.startsWith("•"));
     }
 }

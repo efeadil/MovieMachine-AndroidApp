@@ -180,7 +180,7 @@ public class MovieController {
         return "https://www.primevideo.com/search/?phrase=" + java.net.URLEncoder.encode(title, "UTF-8");
     }
 
-    private List<CastMember> extractCast(JSONObject json) throws Exception {
+    public List<CastMember> extractCast(JSONObject json) throws Exception {
         List<CastMember> cast = new ArrayList<>();
         if (!json.has("credits")) return cast;
         JSONArray array = json.getJSONObject("credits").getJSONArray("cast");
@@ -191,20 +191,21 @@ public class MovieController {
         return cast;
     }
 
-    private String extractReviews(JSONObject json) {
+    public String extractReviews(JSONObject json) {
         try {
             if (json.has("reviews")) {
                 JSONArray reviewsArray = json.getJSONObject("reviews").getJSONArray("results");
                 StringBuilder sb = new StringBuilder();
                 int count = Math.min(reviewsArray.length(), 3);
                 for (int i = 0; i < count; i++) {
-                    String content = reviewsArray.getJSONObject(i).optString("content", "");
-                    // EN: Truncate long reviews to keep them "short"
-                    // TR: Yorumları "kısa" tutmak için belirli bir uzunlukta kesiyoruz
+                    JSONObject reviewObj = reviewsArray.getJSONObject(i);
+                    String author = reviewObj.optString("author", "Anonymous");
+                    String content = reviewObj.optString("content", "");
+                    
                     if (content.length() > 120) {
                         content = content.substring(0, 117) + "...";
                     }
-                    sb.append("• \"").append(content.trim()).append("\"\n\n");
+                    sb.append("• ").append(author).append(": \"").append(content.trim()).append("\"\n\n");
                 }
                 return sb.length() > 0 ? sb.toString().trim() : "No reviews available.";
             }
