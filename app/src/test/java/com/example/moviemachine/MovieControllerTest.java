@@ -10,8 +10,11 @@ import java.util.List;
 import static org.junit.Assert.*;
 
 /**
- * EN: Tests the data processing and error handling logic of MovieController without an internet connection.
- * TR: MovieController'ın veri işleme ve hata yönetimi mantığını test eder.
+ * EN: Local unit tests for deterministic MovieController parsing rules.
+ * These tests intentionally use controlled JSON fixtures and do not replace
+ * the operational tests in MovieOperationalTest.
+ * TR: MovieController'ın deterministik JSON ayrıştırma kuralları için yerel unit testler.
+ * Bu testler kontrollü JSON fixture kullanır; MovieOperationalTest'in yerine geçmez.
  */
 public class MovieControllerTest {
 
@@ -93,8 +96,8 @@ public class MovieControllerTest {
 
     @Test
     public void testExtractReviews_FormatsCorrectlyAndTruncates() throws Exception {
-        // EN: REAL TEST for Req #31: Verifies that reviews include authors and are truncated if too long.
-        // TR: 31. Madde için GERÇEK TEST: Yorumların yazar içerdiğini ve çok uzunsa kesildiğini doğrular.
+        // EN: Unit-level check for the review formatting rule.
+        // TR: Yorum biçimlendirme kuralının unit seviyesinde kontrolü.
         String longContent = "This is a very long review that should definitely be truncated because it exceeds the one hundred and twenty character limit set in our controller logic for better UI display.";
         
         String jsonInput = "{\"reviews\": {\"results\": [" +

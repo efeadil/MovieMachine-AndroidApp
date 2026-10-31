@@ -49,9 +49,7 @@ public class NavigationTest {
         onView(withId(R.id.cbAction)).perform(click());
         onView(withId(R.id.btnSavePreferences)).perform(click());
 
-        // 3. Film Listesi Ekranı (Liste yüklenene kadar kısa bir bekleme gerekebilir veya direkt kontrol)
-        // Hoca "neden fail veriyordu" derse: "Async internet isteği tamamlanmadan UI kontrolü yapıldığı için 
-        // fail veriyordu, testi senkronize hale getirdim" diyebilirsin.
+        // 3. Confirm that the real movie-list screen was opened.
         onView(withId(R.id.rvPopular)).check(matches(isDisplayed()));
     }
 }
