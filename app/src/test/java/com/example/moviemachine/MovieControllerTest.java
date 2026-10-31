@@ -1,20 +1,22 @@
 package com.example.moviemachine;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
 import com.example.moviemachine.Controller.MovieController;
 import com.example.moviemachine.Model.Movie;
+
+import org.json.JSONObject;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.util.List;
 
-import static org.junit.Assert.*;
-
 /**
- * EN: Local unit tests for deterministic MovieController parsing rules.
- * These tests intentionally use controlled JSON fixtures and do not replace
- * the operational tests in MovieOperationalTest.
- * TR: MovieController'ın deterministik JSON ayrıştırma kuralları için yerel unit testler.
- * Bu testler kontrollü JSON fixture kullanır; MovieOperationalTest'in yerine geçmez.
+ * Local unit tests for deterministic MovieController parsing and formatting rules.
  */
 public class MovieControllerTest {
 
@@ -26,98 +28,158 @@ public class MovieControllerTest {
     }
 
     @Test
-    public void testParseMoviesFromJson_WithValidData() {
-        // EN: Tests whether valid JSON data is parsed correctly.
-        // TR: Geçerli JSON verisinin doğru şekilde parse edilip edilmediğini test eder.
-        String jsonInput = "{\"results\": [" +
-                "{\"id\": 1, \"title\": \"Inception\", \"overview\": \"A dream within a dream\", \"poster_path\": \"/p1.jpg\", \"vote_average\": 8.8}," +
-                "{\"id\": 2, \"title\": \"Interstellar\", \"overview\": \"Space travel\", \"poster_path\": \"/p2.jpg\", \"vote_average\": 8.6}" +
+    public void parseMovies_validData_mapsAllMovieFields() {
+        String json = "{\"results\":[" +
+                "{\"id\":1,\"title\":\"Inception\",\"overview\":\"A dream within a dream\"," +
+                "\"poster_path\":\"/p1.jpg\",\"vote_average\":8.8,\"media_type\":\"movie\"}," +
+                "{\"id\":2,\"title\":\"Interstellar\",\"overview\":\"Space travel\"," +
+                "\"poster_path\":\"/p2.jpg\",\"vote_average\":8.6}" +
                 "]}";
 
-        List<Movie> movies = movieController.parseMoviesFromJson(jsonInput);
+        List<Movie> movies = movieController.parseMoviesFromJson(json);
 
-        assertNotNull(movies);
         assertEquals(2, movies.size());
-        assertEquals("Inception", movies.get(0).getTitle());
-        assertEquals(1, movies.get(0).getId());
-        assertEquals(8.6, movies.get(1).getVoteAverage(), 0.1);
+        Movie first = movies.get(0);
+        assertEquals(1, first.getId());
+        assertEquals("Inception", first.getTitle());
+        assertEquals("A dream within a dream", first.getOverview());
+        assertEquals("/p1.jpg", first.getPosterPath());
+        assertEquals(8.8, first.getVoteAverage(), 0.001);
+        assertEquals("movie", first.getMediaType());
+
+        Movie second = movies.get(1);
+        assertEquals(2, second.getId());
+        assertEquals(8.6, second.getVoteAverage(), 0.001);
     }
 
     @Test
-    public void testParseMoviesFromJson_WithMissingFields() {
-        // EN: Tests that the app doesn't crash and uses default values when some fields are missing.
-        // TR: Eksik alanlarda uygulamanın çökmediğini ve varsayılan değerleri kullandığını test eder.
-        String jsonInput = "{\"results\": [" +
-                "{\"id\": 101, \"title\": \"Broken Movie\"}," +
-                "{\"name\": \"TV Show\", \"id\": 202}" +
+    public void parseMovies_missingFields_usesControllerDefaults() {
+        String json = "{\"results\":[" +
+                "{\"id\":101,\"title\":\"Broken Movie\"}," +
+                "{\"id\":202,\"name\":\"TV Show\"}" +
                 "]}";
 
-        List<Movie> movies = movieController.parseMoviesFromJson(jsonInput);
+        List<Movie> movies = movieController.parseMoviesFromJson(json);
 
-        assertNotNull(movies);
         assertEquals(2, movies.size());
-        assertEquals("Broken Movie", movies.get(0).getTitle());
+        Movie movie = movies.get(0);
+        assertEquals(101, movie.getId());
+        assertEquals("Broken Movie", movie.getTitle());
+        assertEquals("", movie.getOverview());
+        assertNull(movie.getPosterPath());
+        assertEquals(0.0, movie.getVoteAverage(), 0.0001);
+        assertEquals("movie", movie.getMediaType());
+
         assertEquals("TV Show", movies.get(1).getTitle());
     }
 
     @Test
-    public void testParseMoviesFromJson_WithEmptyResults() {
-        // EN: Tests that an empty list is returned when the API returns empty results.
-        // TR: API'den boş bir sonuç listesi geldiğinde listenin boş döndüğünü test eder.
-        String jsonInput = "{\"results\": []}";
+    public void parseMovies_nullPosterAndIntegerRating_areParsedSafely() {
+        String json = "{\"results\":[{" +
+                "\"id\":303,\"title\":\"Integer Rating\",\"overview\":\"Overview\"," +
+                "\"poster_path\":null,\"vote_average\":8}]}";
 
-        List<Movie> movies = movieController.parseMoviesFromJson(jsonInput);
+        List<Movie> movies = movieController.parseMoviesFromJson(json);
 
-        assertNotNull(movies);
-        assertTrue(movies.isEmpty());
+        assertEquals(1, movies.size());
+        assertNull(movies.get(0).getPosterPath());
+        assertEquals(8.0, movies.get(0).getVoteAverage(), 0.0001);
     }
 
     @Test
-    public void testParseMoviesFromJson_WithInvalidJson() {
-        // EN: Tests that errors are handled correctly when the input is not a valid JSON.
-        // TR: Geçersiz JSON formatında hatanın yakalandığını test eder.
-        String jsonInput = "Not a valid JSON string!";
-
-        List<Movie> movies = movieController.parseMoviesFromJson(jsonInput);
-
-        assertNotNull(movies);
-        assertTrue(movies.isEmpty());
+    public void parseMovies_missingResultsKey_returnsEmptyList() {
+        assertTrue(movieController.parseMoviesFromJson("{}").isEmpty());
     }
 
     @Test
-    public void testParseMoviesFromJson_WithNullInput() {
-        // EN: Tests that the app safely returns an empty list if the input data is null.
-        // TR: Giriş verisinin null olması durumunda güvenli bir şekilde boş liste döndüğünü test eder.
-        List<Movie> movies = movieController.parseMoviesFromJson(null);
-
-        assertNotNull(movies);
-        assertTrue(movies.isEmpty());
+    public void parseMovies_nullResults_returnsEmptyList() {
+        assertTrue(movieController.parseMoviesFromJson("{\"results\":null}").isEmpty());
     }
 
     @Test
-    public void testExtractReviews_FormatsCorrectlyAndTruncates() throws Exception {
-        // EN: Unit-level check for the review formatting rule.
-        // TR: Yorum biçimlendirme kuralının unit seviyesinde kontrolü.
-        String longContent = "This is a very long review that should definitely be truncated because it exceeds the one hundred and twenty character limit set in our controller logic for better UI display.";
-        
-        String jsonInput = "{\"reviews\": {\"results\": [" +
-                "{\"author\": \"Adil\", \"content\": \"Amazing movie!\"}," +
-                "{\"author\": \"Efe\", \"content\": \"" + longContent + "\"} " +
-                "]}}";
-        
-        org.json.JSONObject json = new org.json.JSONObject(jsonInput);
-        
-        // Metot artık public, doğrudan erişilebilmeli.
+    public void parseMovies_emptyResults_returnsEmptyList() {
+        assertTrue(movieController.parseMoviesFromJson("{\"results\":[]}").isEmpty());
+    }
+
+    @Test
+    public void parseMovies_invalidJson_returnsEmptyList() {
+        assertNotNull(movieController.parseMoviesFromJson("Not a valid JSON string!"));
+        assertTrue(movieController.parseMoviesFromJson("Not a valid JSON string!").isEmpty());
+    }
+
+    @Test
+    public void parseMovies_nullInput_returnsEmptyList() {
+        assertNotNull(movieController.parseMoviesFromJson(null));
+        assertTrue(movieController.parseMoviesFromJson(null).isEmpty());
+    }
+
+    @Test
+    public void extractReviews_formatsAuthorsAndContentExactly() throws Exception {
+        JSONObject json = new JSONObject(
+                "{\"reviews\":{\"results\":[" +
+                        "{\"author\":\"Adil\",\"content\":\"Amazing movie!\"}," +
+                        "{\"author\":\"Efe\",\"content\":\"Short review\"}" +
+                        "]}}");
+
         String result = movieController.extractReviews(json);
-        
-        assertNotNull("Result should not be null", result);
-        // 1. Check if first review has author
-        assertTrue("Review should contain author name", result.contains("Adil: \"Amazing movie!\""));
-        
-        // 2. Check if long review is truncated (contains ...)
-        assertTrue("Long review should be truncated with ellipses", result.contains("...\""));
-        
-        // 3. Check if bullet point is used
-        assertTrue("Should use bullet points", result.startsWith("•"));
+
+        assertEquals("• Adil: \"Amazing movie!\"\n\n• Efe: \"Short review\"", result);
+    }
+
+    @Test
+    public void extractReviews_exactly120Characters_isNotTruncated() throws Exception {
+        String exact = repeat('a', 120);
+        JSONObject json = reviewsJson("Adil", exact);
+
+        String result = movieController.extractReviews(json);
+
+        assertEquals("• Adil: \"" + exact + "\"", result);
+        assertFalse(result.contains("..."));
+    }
+
+    @Test
+    public void extractReviews_121Characters_isTruncatedTo120Characters() throws Exception {
+        String overLimit = repeat('a', 121);
+        JSONObject json = reviewsJson("Adil", overLimit);
+
+        String result = movieController.extractReviews(json);
+
+        assertEquals("• Adil: \"" + repeat('a', 117) + "...\"", result);
+        assertEquals(120, result.substring(result.indexOf('"') + 1, result.lastIndexOf('"')).length());
+    }
+
+    @Test
+    public void extractReviews_missingAuthor_usesAnonymous() throws Exception {
+        JSONObject json = new JSONObject(
+                "{\"reviews\":{\"results\":[{\"content\":\"A review without an author\"}]}}");
+
+        assertEquals("• Anonymous: \"A review without an author\"",
+                movieController.extractReviews(json));
+    }
+
+    @Test
+    public void extractReviews_emptyResults_returnsNoReviewsMessage() throws Exception {
+        JSONObject json = new JSONObject("{\"reviews\":{\"results\":[]}}");
+
+        assertEquals("No reviews available.", movieController.extractReviews(json));
+    }
+
+    @Test
+    public void extractReviews_missingReviews_returnsNoReviewsMessage() throws Exception {
+        assertEquals("No reviews available.",
+                movieController.extractReviews(new JSONObject("{}")));
+    }
+
+    private static JSONObject reviewsJson(String author, String content) throws Exception {
+        return new JSONObject("{\"reviews\":{\"results\":[{" +
+                "\"author\":\"" + author + "\",\"content\":\"" + content + "\"}]}}");
+    }
+
+    private static String repeat(char character, int count) {
+        StringBuilder value = new StringBuilder(count);
+        for (int i = 0; i < count; i++) {
+            value.append(character);
+        }
+        return value.toString();
     }
 }
