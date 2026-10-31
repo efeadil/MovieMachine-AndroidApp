@@ -47,7 +47,7 @@ This project strictly adheres to modern software engineering standards:
 The project contains three different test levels:
 - **Unit Tests (JUnit 4 & Mockito)**: Executes the real model, parser, and network-availability logic locally without contacting TMDB.
 - **Integration Test (AndroidJUnit4)**: `MovieApiIntegrationTest` executes the real `MovieController.fetchMovies()` request against TMDB on a connected device or emulator. It does not use a hard-coded sample response.
-- **UI Tests (Espresso)**: Automates input validation and navigation flows on a connected device or emulator. Network/API behavior is tested separately by the integration test, so UI tests do not rely on fixed sleeps or always-visible views.
+- **Operational UI Tests (Espresso)**: `MovieOperationalTest` launches the real movie-list and movie-detail activities, performs real TMDB requests, and verifies that movies and reviews reach the actual views. The tests fail when the API key, network request, response parsing, or UI binding is broken.
 
 Run the local unit tests from the project directory:
 
@@ -67,7 +67,7 @@ To run the real TMDB integration test, configure `tmdb_api_key` in `local.proper
 ./gradlew connectedDebugAndroidTest
 ```
 
-The integration test intentionally fails when the API key is missing, the network request times out, TMDB rejects the key, or the response contains no valid movie data. This prevents a fake test from passing silently.
+The integration and operational tests intentionally fail when the API key is missing, the network request times out, TMDB rejects the key, the response contains no valid movie data, or the data is not displayed by the activity. This prevents a fake test from passing silently.
 
 ---
 
