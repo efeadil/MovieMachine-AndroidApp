@@ -44,8 +44,9 @@ This project strictly adheres to modern software engineering standards:
 
 ## 🧪 Testing & Quality Assurance
 
-The project contains three different test levels:
-- **Unit Tests (JUnit 4 & Mockito)**: Executes the real model, parser, and network-availability logic locally without contacting TMDB.
+The project contains four complementary test levels:
+- **Unit Tests (JUnit 4)**: Executes the real model and JSON parsing/formatting logic locally using controlled fixtures.
+- **Controller HTTP Tests (JUnit 4 & MockWebServer)**: `MovieControllerHttpTest` executes the real `MovieController.fetchMovies()` method against a local HTTP server. It verifies the outgoing URL/query parameters, HTTP response parsing, returned movie fields, and unauthorized error callback without depending on TMDB availability or credentials.
 - **Integration Test (AndroidJUnit4)**: `MovieApiIntegrationTest` executes the real `MovieController.fetchMovies()` request against TMDB on a connected device or emulator. It does not use a hard-coded sample response.
 - **Operational UI Tests (Espresso)**: `MovieOperationalTest` launches the real movie-list and movie-detail activities, performs real TMDB requests, and verifies that movies and reviews reach the actual views. The tests fail when the API key, network request, response parsing, or UI binding is broken.
 
@@ -54,6 +55,8 @@ Run the local unit tests from the project directory:
 ```bash
 ./gradlew test
 ```
+
+The local controller HTTP tests use MockWebServer as a deterministic HTTP endpoint; the controller, request construction, JSON parsing, and callbacks are the production code under test.
 
 Build the instrumentation tests:
 
