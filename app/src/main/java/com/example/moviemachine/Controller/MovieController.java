@@ -19,9 +19,21 @@ import java.util.concurrent.Executors;
  * TR: Model ve View arasındaki koordinasyonu sağlar.
  * SOLID: Adheres to Single Responsibility Principle.
  */
-public class MovieController {
+public class MovieController implements AutoCloseable {
 
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
+    private final String apiBaseUrl;
+
+    public MovieController() {
+        this("https://api.themoviedb.org/3/");
+    }
+
+    public MovieController(String apiBaseUrl) {
+        if (apiBaseUrl == null || apiBaseUrl.trim().isEmpty()) {
+            throw new IllegalArgumentException("API base URL must not be empty.");
+        }
+        this.apiBaseUrl = apiBaseUrl.endsWith("/") ? apiBaseUrl : apiBaseUrl + "/";
+    }
 
     public interface MovieCallback {
         void onSuccess(List<Movie> movies);
@@ -44,7 +56,7 @@ public class MovieController {
             callback.onError("API key is missing.");
             return;
         }
-        String url = "https://api.themoviedb.org/3/discover/movie?api_key=" + apiKey +
+        String url = apiBaseUrl + "discover/movie?api_key=" + apiKey +
                 "&language=en-US&sort_by=popularity.desc&with_genres=" + genreIds;
         executeRequest(url, response -> callback.onSuccess(parseMoviesFromJson(response)), callback::onError);
     }
@@ -60,7 +72,7 @@ public class MovieController {
         }
         try {
             String encodedQuery = java.net.URLEncoder.encode(query, "UTF-8");
-            String url = "https://api.themoviedb.org/3/search/multi?api_key=" + apiKey + "&query=" + encodedQuery;
+            String url = apiBaseUrl + "search/multi?api_key=" + apiKey + "&query=" + encodedQuery;
             executeRequest(url, response -> callback.onSuccess(parseMoviesFromJson(response)), callback::onError);
         } catch (Exception e) {
             callback.onError("Encoding error");
@@ -79,7 +91,7 @@ public class MovieController {
         String type = ("tv".equals(mediaType)) ? "tv/" : "movie/";
         // EN: Added 'reviews' to append_to_response to satisfy Req #31.
         // TR: 31. maddeyi karşılamak için 'reviews' (yorumlar) eklendi.
-        String url = "https://api.themoviedb.org/3/" + type + movieId + "?api_key=" + apiKey + "&append_to_response=credits,videos,watch/providers,external_ids,reviews";
+        String url = apiBaseUrl + type + movieId + "?api_key=" + apiKey + "&append_to_response=credits,videos,watch/providers,external_ids,reviews";
 
         executeRequest(url, response -> {
             try {
@@ -215,4 +227,9 @@ public class MovieController {
 
     interface ResponseListener { void onResponse(String response); }
     interface ErrorListener { void onError(String error); }
+
+    @Override
+    public void close() {
+        executorService.shutdownNow();
+    }
 }
