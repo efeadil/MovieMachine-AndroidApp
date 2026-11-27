@@ -31,32 +31,33 @@ public class MovieApiIntegrationTest {
                 "tmdb_api_key must be set in local.properties for this integration test.",
                 BuildConfig.TMDB_API_KEY.trim().isEmpty());
 
-        MovieController controller = new MovieController();
-        CountDownLatch callbackLatch = new CountDownLatch(1);
-        AtomicReference<List<Movie>> result = new AtomicReference<>();
-        AtomicReference<String> error = new AtomicReference<>();
+        try (MovieController controller = new MovieController()) {
+            CountDownLatch callbackLatch = new CountDownLatch(1);
+            AtomicReference<List<Movie>> result = new AtomicReference<>();
+            AtomicReference<String> error = new AtomicReference<>();
 
-        controller.fetchMovies(BuildConfig.TMDB_API_KEY, "28", new MovieController.MovieCallback() {
-            @Override
-            public void onSuccess(List<Movie> movies) {
-                result.set(movies);
-                callbackLatch.countDown();
-            }
+            controller.fetchMovies(BuildConfig.TMDB_API_KEY, "28", new MovieController.MovieCallback() {
+                @Override
+                public void onSuccess(List<Movie> movies) {
+                    result.set(movies);
+                    callbackLatch.countDown();
+                }
 
-            @Override
-            public void onError(String errorMessage) {
-                error.set(errorMessage);
-                callbackLatch.countDown();
-            }
-        });
+                @Override
+                public void onError(String errorMessage) {
+                    error.set(errorMessage);
+                    callbackLatch.countDown();
+                }
+            });
 
-        assertTrue("TMDB request did not finish within 45 seconds.",
-                callbackLatch.await(45, TimeUnit.SECONDS));
-        assertNull("TMDB request failed: " + error.get(), error.get());
-        assertNotNull("TMDB success callback returned no movie list.", result.get());
-        assertFalse("TMDB returned no movies for the action genre.", result.get().isEmpty());
-        assertTrue("Returned movie ID must be positive.", result.get().get(0).getId() > 0);
-        assertFalse("Returned movie title must not be empty.",
-                result.get().get(0).getTitle().trim().isEmpty());
+            assertTrue("TMDB request did not finish within 45 seconds.",
+                    callbackLatch.await(45, TimeUnit.SECONDS));
+            assertNull("TMDB request failed: " + error.get(), error.get());
+            assertNotNull("TMDB success callback returned no movie list.", result.get());
+            assertFalse("TMDB returned no movies for the action genre.", result.get().isEmpty());
+            assertTrue("Returned movie ID must be positive.", result.get().get(0).getId() > 0);
+            assertFalse("Returned movie title must not be empty.",
+                    result.get().get(0).getTitle().trim().isEmpty());
+        }
     }
 }

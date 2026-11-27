@@ -12,6 +12,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import com.example.moviemachine.Controller.MovieController;
+import com.example.moviemachine.Model.CastMember;
 import com.example.moviemachine.Model.Movie;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
@@ -131,6 +132,29 @@ public class MovieControllerHttpTest {
     }
 
     @Test
+    public void fetchMovies_serverErrorInvokesErrorCallback() throws Exception {
+        server.enqueue(new MockResponse().setResponseCode(500));
+
+        CountDownLatch callbackLatch = new CountDownLatch(1);
+        AtomicReference<String> error = new AtomicReference<>();
+        MovieController.MovieCallback callback = mock(MovieController.MovieCallback.class);
+        doAnswer(invocation -> {
+            error.set(invocation.getArgument(0));
+            callbackLatch.countDown();
+            return null;
+        }).when(callback).onError(anyString());
+
+        controller.fetchMovies("test-api-key", "28", callback);
+
+        assertTrue("The server-error callback was not invoked.",
+                callbackLatch.await(5, TimeUnit.SECONDS));
+        verify(callback).onError("Server error: 500");
+        verify(callback, never()).onSuccess(anyList());
+        assertEquals("Server error: 500", error.get());
+        assertNotNull(server.takeRequest(1, TimeUnit.SECONDS));
+    }
+
+    @Test
     public void fetchMovies_missingApiKeyReturnsErrorWithoutSendingRequest() {
         MovieController.MovieCallback callback = mock(MovieController.MovieCallback.class);
 
@@ -139,5 +163,104 @@ public class MovieControllerHttpTest {
         verify(callback).onError("API key is missing.");
         verify(callback, never()).onSuccess(anyList());
         assertEquals(0, server.getRequestCount());
+    }
+
+    @Test
+    public void searchMovies_encodesQueryAndReturnsParsedResults() throws Exception {
+        server.enqueue(new MockResponse()
+                .setResponseCode(200)
+                .addHeader("Content-Type", "application/json")
+                .setBody("{\"results\":[{" +
+                        "\"id\":550,\"title\":\"Fight Club\",\"overview\":\"A film\"," +
+                        "\"poster_path\":\"/fight-club.jpg\",\"vote_average\":8.4" +
+                        "}]}"));
+
+        CountDownLatch callbackLatch = new CountDownLatch(1);
+        AtomicReference<List<Movie>> result = new AtomicReference<>();
+        AtomicReference<String> error = new AtomicReference<>();
+        MovieController.MovieCallback callback = mock(MovieController.MovieCallback.class);
+        doAnswer(invocation -> {
+            result.set(invocation.getArgument(0));
+            callbackLatch.countDown();
+            return null;
+        }).when(callback).onSuccess(anyList());
+        doAnswer(invocation -> {
+            error.set(invocation.getArgument(0));
+            callbackLatch.countDown();
+            return null;
+        }).when(callback).onError(anyString());
+
+        controller.searchMovies("test-api-key", "Fight Club", callback);
+
+        assertTrue("The search callback was not invoked.",
+                callbackLatch.await(5, TimeUnit.SECONDS));
+        verify(callback).onSuccess(anyList());
+        verify(callback, never()).onError(anyString());
+        assertNull(error.get());
+        assertEquals(1, result.get().size());
+        assertEquals("Fight Club", result.get().get(0).getTitle());
+
+        RecordedRequest request = server.takeRequest(1, TimeUnit.SECONDS);
+        assertNotNull(request);
+        assertEquals("/3/search/multi", request.getRequestUrl().encodedPath());
+        assertEquals("Fight Club", request.getRequestUrl().queryParameter("query"));
+        assertEquals("test-api-key", request.getRequestUrl().queryParameter("api_key"));
+    }
+
+    @Test
+    public void fetchMovieDetails_parsesTrailerCastAndReviews() throws Exception {
+        server.enqueue(new MockResponse()
+                .setResponseCode(200)
+                .addHeader("Content-Type", "application/json")
+                .setBody("{\"title\":\"Fight Club\"," +
+                        "\"videos\":{\"results\":[{\"site\":\"YouTube\",\"type\":\"Trailer\",\"key\":\"abc123\"}]}," +
+                        "\"credits\":{\"cast\":[{\"name\":\"Brad Pitt\",\"profile_path\":\"/brad.jpg\"}]}," +
+                        "\"reviews\":{\"results\":[{\"author\":\"Reviewer\",\"content\":\"Well made.\"}]}" +
+                        "}"));
+
+        CountDownLatch callbackLatch = new CountDownLatch(1);
+        AtomicReference<String> videoUrl = new AtomicReference<>();
+        AtomicReference<String> primeUrl = new AtomicReference<>();
+        AtomicReference<List<CastMember>> cast = new AtomicReference<>();
+        AtomicReference<String> reviews = new AtomicReference<>();
+        AtomicReference<String> error = new AtomicReference<>();
+        MovieController.MovieDetailCallback callback =
+                mock(MovieController.MovieDetailCallback.class);
+        doAnswer(invocation -> {
+            videoUrl.set(invocation.getArgument(0));
+            primeUrl.set(invocation.getArgument(1));
+            cast.set(invocation.getArgument(2));
+            reviews.set(invocation.getArgument(3));
+            callbackLatch.countDown();
+            return null;
+        }).when(callback).onSuccess(anyString(), anyString(),
+                org.mockito.ArgumentMatchers.anyList(), anyString());
+        doAnswer(invocation -> {
+            error.set(invocation.getArgument(0));
+            callbackLatch.countDown();
+            return null;
+        }).when(callback).onError(anyString());
+
+        controller.fetchMovieDetailsAndCast(550, "movie", "test-api-key", callback);
+
+        assertTrue("The detail callback was not invoked.",
+                callbackLatch.await(5, TimeUnit.SECONDS));
+        verify(callback).onSuccess(anyString(), anyString(),
+                org.mockito.ArgumentMatchers.anyList(), anyString());
+        verify(callback, never()).onError(anyString());
+        assertNull(error.get());
+        assertEquals("https://www.youtube.com/watch?v=abc123", videoUrl.get());
+        assertEquals("https://www.primevideo.com/search/?phrase=Fight+Club", primeUrl.get());
+        assertEquals(1, cast.get().size());
+        assertEquals("Brad Pitt", cast.get().get(0).getName());
+        assertEquals("/brad.jpg", cast.get().get(0).getProfilePath());
+        assertEquals("• Reviewer: \"Well made.\"", reviews.get());
+
+        RecordedRequest request = server.takeRequest(1, TimeUnit.SECONDS);
+        assertNotNull(request);
+        assertEquals("/3/movie/550", request.getRequestUrl().encodedPath());
+        assertEquals("test-api-key", request.getRequestUrl().queryParameter("api_key"));
+        assertEquals("credits,videos,watch/providers,external_ids,reviews",
+                request.getRequestUrl().queryParameter("append_to_response"));
     }
 }
