@@ -51,6 +51,10 @@ public class MovieOperationalTest {
                      ActivityScenario.launch(MainActivity.class)) {
             onView(withId(R.id.btnSkip)).perform(androidx.test.espresso.action.ViewActions.click());
 
+            onView(withId(R.id.btnSavePreferences)).check(matches(isDisplayed()));
+            onView(withId(R.id.cbAction)).perform(androidx.test.espresso.action.ViewActions.click());
+            onView(withId(R.id.btnSavePreferences)).perform(androidx.test.espresso.action.ViewActions.click());
+
             RecyclerViewDataIdlingResource dataResource = registerRecyclerViewResource();
             try {
                 onView(withId(R.id.rvPopular))

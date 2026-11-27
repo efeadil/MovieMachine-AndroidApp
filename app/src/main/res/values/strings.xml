@@ -17,6 +17,7 @@
     <string name="welcome_toast">Welcome %1$s</string>
     <string name="guest_user">Guest</string>
     <string name="error_no_internet">No internet connection!</string>
+    <string name="error_recommended_movies">Failed to load recommended movies!</string>
     <string name="error_popular_movies">Failed to load popular movies!</string>
     <string name="preferences_saved">Preferences saved! ✅</string>
     <string name="onboarding_title">What do you like? 🎬</string>

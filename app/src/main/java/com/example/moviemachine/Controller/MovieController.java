@@ -4,8 +4,12 @@ import com.example.moviemachine.Model.Movie;
 import com.example.moviemachine.Model.CastMember;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.json.JSONException;
+import org.json.JSONTokener;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
@@ -20,6 +24,8 @@ import java.util.concurrent.Executors;
  * SOLID: Adheres to Single Responsibility Principle.
  */
 public class MovieController implements AutoCloseable {
+
+    private static final String INVALID_RESPONSE = "Invalid API response.";
 
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final String apiBaseUrl;
@@ -58,7 +64,7 @@ public class MovieController implements AutoCloseable {
         }
         String url = apiBaseUrl + "discover/movie?api_key=" + apiKey +
                 "&language=en-US&sort_by=popularity.desc&with_genres=" + genreIds;
-        executeRequest(url, response -> callback.onSuccess(parseMoviesFromJson(response)), callback::onError);
+        executeRequest(url, response -> deliverMovieList(response, callback), callback::onError);
     }
 
     /**
@@ -70,13 +76,19 @@ public class MovieController implements AutoCloseable {
             callback.onError("API key is missing.");
             return;
         }
-        try {
-            String encodedQuery = java.net.URLEncoder.encode(query, "UTF-8");
-            String url = apiBaseUrl + "search/multi?api_key=" + apiKey + "&query=" + encodedQuery;
-            executeRequest(url, response -> callback.onSuccess(parseMoviesFromJson(response)), callback::onError);
-        } catch (Exception e) {
-            callback.onError("Encoding error");
+        if (query == null || query.trim().isEmpty()) {
+            callback.onError("Search query is missing.");
+            return;
         }
+        final String encodedQuery;
+        try {
+            encodedQuery = java.net.URLEncoder.encode(query.trim(), "UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            callback.onError("Encoding error");
+            return;
+        }
+        String url = apiBaseUrl + "search/multi?api_key=" + apiKey + "&query=" + encodedQuery;
+        executeRequest(url, response -> deliverMovieList(response, callback), callback::onError);
     }
 
     /**
@@ -94,16 +106,22 @@ public class MovieController implements AutoCloseable {
         String url = apiBaseUrl + type + movieId + "?api_key=" + apiKey + "&append_to_response=credits,videos,watch/providers,external_ids,reviews";
 
         executeRequest(url, response -> {
+            final String videoUrl, primeUrl, reviews;
+            final List<CastMember> cast;
             try {
-                JSONObject json = new JSONObject(response);
-                String videoUrl = extractTrailerUrl(json);
-                String primeUrl = generatePrimeSearchUrl(json);
-                List<CastMember> cast = extractCast(json);
-                String reviews = extractReviews(json);
-                callback.onSuccess(videoUrl, primeUrl, cast, reviews);
+                JSONObject json = parseResponseObject(response);
+                if (json.optInt("id", -1) != movieId) {
+                    throw new JSONException("Unexpected movie ID.");
+                }
+                videoUrl = extractTrailerUrl(json);
+                primeUrl = generatePrimeSearchUrl(json);
+                cast = extractCast(json);
+                reviews = extractReviews(json);
             } catch (Exception e) {
-                callback.onError("Parsing error");
+                callback.onError(INVALID_RESPONSE);
+                return;
             }
+            callback.onSuccess(videoUrl, primeUrl, cast, reviews);
         }, callback::onError);
     }
 
@@ -116,6 +134,8 @@ public class MovieController implements AutoCloseable {
     private void executeRequest(String urlString, ResponseListener listener, ErrorListener errorListener) {
         executorService.execute(() -> {
             HttpURLConnection conn = null;
+            String response = null;
+            String error = null;
             try {
                 URL url = new URL(urlString);
                 conn = (HttpURLConnection) url.openConnection();
@@ -126,51 +146,84 @@ public class MovieController implements AutoCloseable {
 
                 int responseCode = conn.getResponseCode();
                 if (responseCode == HttpURLConnection.HTTP_OK) {
-                    BufferedReader r = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                    StringBuilder res = new StringBuilder();
-                    String line;
-                    while ((line = r.readLine()) != null) res.append(line);
-                    listener.onResponse(res.toString());
+                    try (BufferedReader r = new BufferedReader(new InputStreamReader(
+                            conn.getInputStream(), StandardCharsets.UTF_8))) {
+                        StringBuilder res = new StringBuilder();
+                        String line;
+                        while ((line = r.readLine()) != null) res.append(line);
+                        response = res.toString();
+                    }
                 } else if (responseCode == HttpURLConnection.HTTP_UNAUTHORIZED) {
-                    errorListener.onError("Invalid or missing API key.");
+                    error = "Invalid or missing API key.";
                 } else {
-                    errorListener.onError("Server error: " + responseCode);
+                    error = "Server error: " + responseCode;
                 }
-            } catch (Exception e) {
-                errorListener.onError("Network error: " + e.getMessage());
+            } catch (IOException | SecurityException e) {
+                // Do not expose request URLs (which contain the API key) in error messages.
+                error = "Network error. Please check your connection and try again.";
             } finally {
                 if (conn != null) conn.disconnect();
             }
+            // Keep callbacks outside the network try/catch to avoid double delivery.
+            if (error != null) errorListener.onError(error);
+            else listener.onResponse(response);
         });
     }
 
+    private void deliverMovieList(String response, MovieCallback callback) {
+        final List<Movie> movies;
+        try {
+            movies = parseMoviesFromJson(response);
+        } catch (IllegalArgumentException e) {
+            callback.onError(INVALID_RESPONSE);
+            return;
+        }
+        callback.onSuccess(movies);
+    }
+
+    private JSONObject parseResponseObject(String jsonString) throws JSONException {
+        if (jsonString == null || jsonString.trim().isEmpty()) {
+            throw new JSONException("Empty response.");
+        }
+        JSONTokener tokener = new JSONTokener(jsonString);
+        Object value = tokener.nextValue();
+        if (!(value instanceof JSONObject) || tokener.nextClean() != 0) {
+            throw new JSONException("Expected one JSON object.");
+        }
+        JSONObject response = (JSONObject) value;
+        if (response.has("success") && !response.optBoolean("success", true)) {
+            throw new JSONException("API reported an error.");
+        }
+        return response;
+    }
+
     /**
-     * EN: Parses movie list from JSON response safely.
-     * TR: JSON cevabından film listesini güvenli bir şekilde ayrıştırır.
+     * Returns an empty list only for a valid response with no supported results.
+     * Invalid payloads fail as a whole; a partial list is never reported as success.
+     * Optional movie fields retain safe defaults.
      */
     public List<Movie> parseMoviesFromJson(String jsonString) {
         List<Movie> movies = new ArrayList<>();
         try {
-            JSONObject response = new JSONObject(jsonString);
-            JSONArray results = response.optJSONArray("results");
-            if (results == null) return movies;
-
+            JSONObject response = parseResponseObject(jsonString);
+            JSONArray results = response.getJSONArray("results");
             for (int i = 0; i < results.length(); i++) {
                 JSONObject obj = results.getJSONObject(i);
+                String mediaType = obj.optString("media_type", "movie");
+                // TMDB multi-search also returns people, which are not playable titles.
+                if (!"movie".equals(mediaType) && !"tv".equals(mediaType)) continue;
                 int id = obj.optInt("id", -1);
-                if (id != -1) {
-                    Movie m = new Movie(id, 
+                if (id <= 0) throw new JSONException("Invalid movie ID.");
+                String posterPath = obj.isNull("poster_path") ? null : obj.optString("poster_path", null);
+                Movie movie = new Movie(id,
                         obj.optString("title", obj.optString("name", "Unknown")),
-                        obj.optString("overview", ""),
-                        obj.optString("poster_path", null),
+                        obj.optString("overview", ""), posterPath,
                         obj.optDouble("vote_average", 0.0));
-                    m.setMediaType(obj.optString("media_type", "movie"));
-                    movies.add(m);
-                }
+                movie.setMediaType(mediaType);
+                movies.add(movie);
             }
-        } catch (Exception e) {
-            // EN: In case of parsing error, return the list as is (empty or partially filled).
-            // TR: Ayrıştırma hatası durumunda listeyi olduğu gibi (boş veya kısmen dolu) döndürür.
+        } catch (JSONException e) {
+            throw new IllegalArgumentException(INVALID_RESPONSE, e);
         }
         return movies;
     }
@@ -203,25 +256,23 @@ public class MovieController implements AutoCloseable {
         return cast;
     }
 
-    public String extractReviews(JSONObject json) {
-        try {
-            if (json.has("reviews")) {
-                JSONArray reviewsArray = json.getJSONObject("reviews").getJSONArray("results");
-                StringBuilder sb = new StringBuilder();
-                int count = Math.min(reviewsArray.length(), 3);
-                for (int i = 0; i < count; i++) {
-                    JSONObject reviewObj = reviewsArray.getJSONObject(i);
-                    String author = reviewObj.optString("author", "Anonymous");
-                    String content = reviewObj.optString("content", "");
-                    
-                    if (content.length() > 120) {
-                        content = content.substring(0, 117) + "...";
-                    }
-                    sb.append("• ").append(author).append(": \"").append(content.trim()).append("\"\n\n");
+    public String extractReviews(JSONObject json) throws JSONException {
+        if (json.has("reviews")) {
+            JSONArray reviewsArray = json.getJSONObject("reviews").getJSONArray("results");
+            StringBuilder sb = new StringBuilder();
+            int count = Math.min(reviewsArray.length(), 3);
+            for (int i = 0; i < count; i++) {
+                JSONObject reviewObj = reviewsArray.getJSONObject(i);
+                String author = reviewObj.optString("author", "Anonymous");
+                String content = reviewObj.optString("content", "");
+
+                if (content.length() > 120) {
+                    content = content.substring(0, 117) + "...";
                 }
-                return sb.length() > 0 ? sb.toString().trim() : "No reviews available.";
+                sb.append("• ").append(author).append(": \"").append(content.trim()).append("\"\n\n");
             }
-        } catch (Exception ignored) {}
+            return sb.length() > 0 ? sb.toString().trim() : "No reviews available.";
+        }
         return "No reviews available.";
     }
 

@@ -140,4 +140,65 @@ public class MovieControllerHttpTest {
         verify(callback, never()).onSuccess(anyList());
         assertEquals(0, server.getRequestCount());
     }
+    @Test
+    public void fetchMovies_malformedResponseInvokesErrorOnly() throws Exception {
+        verifyListResponse("{\"results\":[{\"id\":1},42]}", false, true);
+    }
+
+    @Test
+    public void searchMovies_missingResultsInvokesErrorOnly() throws Exception {
+        verifyListResponse("{}", true, true);
+    }
+
+    @Test
+    public void searchMovies_validEmptyResponseInvokesSuccessOnly() throws Exception {
+        verifyListResponse("{\"results\":[]}", true, false);
+    }
+
+    private void verifyListResponse(String body, boolean search, boolean expectError) throws Exception {
+        server.enqueue(new MockResponse().setResponseCode(200)
+                .addHeader("Content-Type", "application/json").setBody(body));
+        CountDownLatch latch = new CountDownLatch(1);
+        MovieController.MovieCallback callback = mock(MovieController.MovieCallback.class);
+        AtomicReference<List<Movie>> movies = new AtomicReference<>();
+        doAnswer(invocation -> {
+            movies.set(invocation.getArgument(0));
+            latch.countDown();
+            return null;
+        }).when(callback).onSuccess(anyList());
+        doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+        }).when(callback).onError(anyString());
+        if (search) controller.searchMovies("test-api-key", "Batman", callback);
+        else controller.fetchMovies("test-api-key", "28", callback);
+        assertTrue("No callback received.", latch.await(5, TimeUnit.SECONDS));
+        if (expectError) {
+            verify(callback).onError("Invalid API response.");
+            verify(callback, never()).onSuccess(anyList());
+        } else {
+            verify(callback).onSuccess(anyList());
+            verify(callback, never()).onError(anyString());
+            assertNotNull(movies.get());
+            assertTrue(movies.get().isEmpty());
+        }
+        assertNotNull(server.takeRequest(1, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void fetchMovieDetails_malformedReviewsInvokesErrorOnly() throws Exception {
+        server.enqueue(new MockResponse().setResponseCode(200)
+                .setBody("{\"id\":550,\"title\":\"Fight Club\",\"reviews\":{\"results\":null}}"));
+        CountDownLatch latch = new CountDownLatch(1);
+        MovieController.MovieDetailCallback callback = mock(MovieController.MovieDetailCallback.class);
+        doAnswer(invocation -> {
+            latch.countDown();
+            return null;
+        }).when(callback).onError(anyString());
+        controller.fetchMovieDetailsAndCast(550, "movie", "test-api-key", callback);
+        assertTrue("No error callback received.", latch.await(5, TimeUnit.SECONDS));
+        verify(callback).onError("Invalid API response.");
+        verify(callback, never()).onSuccess(anyString(), anyString(), anyList(), anyString());
+    }
+
 }

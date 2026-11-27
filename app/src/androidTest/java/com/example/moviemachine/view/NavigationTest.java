@@ -52,4 +52,13 @@ public class NavigationTest {
         // 3. Confirm that the real movie-list screen was opened.
         onView(withId(R.id.rvPopular)).check(matches(isDisplayed()));
     }
+    @Test
+    public void testGuestFlowThroughOnboarding() {
+        onView(withId(R.id.btnSkip)).perform(click());
+        onView(withId(R.id.btnSavePreferences)).check(matches(isDisplayed()));
+        onView(withId(R.id.cbAction)).perform(click());
+        onView(withId(R.id.btnSavePreferences)).perform(click());
+        onView(withId(R.id.rvPopular)).check(matches(isDisplayed()));
+    }
+
 }

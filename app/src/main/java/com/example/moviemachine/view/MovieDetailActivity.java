@@ -78,6 +78,7 @@ public class MovieDetailActivity extends AppCompatActivity {
             @Override
             public void onSuccess(String videoUrl, String primeUrl, List<CastMember> cast, String review) {
                 runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
                     rvCast.setAdapter(new CastAdapter(MovieDetailActivity.this, cast));
                     tvDetailReview.setText(review);
                     setupButtons(videoUrl, primeUrl);
@@ -87,6 +88,7 @@ public class MovieDetailActivity extends AppCompatActivity {
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
                     tvDetailReview.setText("Error loading reviews.");
                     Toast.makeText(MovieDetailActivity.this, error, Toast.LENGTH_SHORT).show();
                 });
@@ -131,5 +133,11 @@ public class MovieDetailActivity extends AppCompatActivity {
                 || "youtu.be".equalsIgnoreCase(host)
                 || "www.primevideo.com".equalsIgnoreCase(host)
                 || "primevideo.com".equalsIgnoreCase(host);
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (controller != null) controller.close();
+        super.onDestroy();
     }
 }

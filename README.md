@@ -46,7 +46,7 @@ This project strictly adheres to modern software engineering standards:
 
 The project contains four complementary test levels:
 - **Unit Tests (JUnit 4)**: Executes the real model and JSON parsing/formatting logic locally using controlled fixtures.
-- **Controller HTTP Tests (JUnit 4 & MockWebServer)**: `MovieControllerHttpTest` executes the real `MovieController.fetchMovies()` method against a local HTTP server. It verifies the outgoing URL/query parameters, HTTP response parsing, returned movie fields, and unauthorized error callback without depending on TMDB availability or credentials.
+- **Controller HTTP Tests (JUnit 4 & MockWebServer)**: `MovieControllerHttpTest` executes the real `MovieController.fetchMovies()` method against a local HTTP server. It verifies the outgoing URL/query parameters, HTTP response parsing, returned movie fields, and error callbacks for unauthorized or malformed responses, as well as valid empty responses, without depending on TMDB availability or credentials.
 - **Integration Test (AndroidJUnit4)**: `MovieApiIntegrationTest` executes the real `MovieController.fetchMovies()` request against TMDB on a connected device or emulator. It does not use a hard-coded sample response.
 - **Operational UI Tests (Espresso)**: `MovieOperationalTest` launches the real movie-list and movie-detail activities, performs real TMDB requests, and verifies that movies and reviews reach the actual views. The tests fail when the API key, network request, response parsing, or UI binding is broken.
 
@@ -97,7 +97,7 @@ The integration and operational tests intentionally fail when the API key is mis
   2. **Add your API Key**:
    Open the `local.properties` file in the root directory and add your TMDB API Key:
    ```properties
-   TMDB_API_KEY=your_api_key_here
+   tmdb_api_key=your_api_key_here
    ```
 
   3. **Build & Run**: Open the project in **Android Studio**, sync Gradle, and run it on an emulator or physical device.

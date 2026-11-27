@@ -27,6 +27,7 @@ public class SearchActivity extends AppCompatActivity {
     private RecyclerView rvSearchResults;
     private ProgressBar pbSearchLoading;
     private MovieController controller;
+    private int searchGeneration;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,6 +56,9 @@ public class SearchActivity extends AppCompatActivity {
      * TR: Arama sorgusuna göre Controller'ı çağırarak sonuçları getirir.
      */
     private void performSearch(String query) {
+        final int generation = ++searchGeneration;
+        rvSearchResults.setAdapter(new MovieAdapter(this, java.util.Collections.emptyList(), this::openDetail));
+        pbSearchLoading.setVisibility(View.GONE);
         if (!NetworkUtils.isNetworkAvailable(this)) {
             Toast.makeText(this, R.string.error_no_internet, Toast.LENGTH_LONG).show();
             return;
@@ -65,15 +69,17 @@ public class SearchActivity extends AppCompatActivity {
             @Override
             public void onSuccess(List<Movie> movies) {
                 runOnUiThread(() -> {
+                    if (generation != searchGeneration || isFinishing() || isDestroyed()) return;
                     pbSearchLoading.setVisibility(View.GONE);
+                    rvSearchResults.setAdapter(new MovieAdapter(SearchActivity.this, movies, SearchActivity.this::openDetail));
                     if (movies.isEmpty()) Toast.makeText(SearchActivity.this, R.string.no_results_found, Toast.LENGTH_SHORT).show();
-                    else rvSearchResults.setAdapter(new MovieAdapter(SearchActivity.this, movies, SearchActivity.this::openDetail));
                 });
             }
 
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
+                    if (generation != searchGeneration || isFinishing() || isDestroyed()) return;
                     pbSearchLoading.setVisibility(View.GONE);
                     Toast.makeText(SearchActivity.this, error, Toast.LENGTH_SHORT).show();
                 });
@@ -90,5 +96,11 @@ public class SearchActivity extends AppCompatActivity {
         intent.putExtra("MOVIE_RATING", movie.getVoteAverage());
         intent.putExtra("MEDIA_TYPE", movie.getMediaType());
         startActivity(intent);
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (controller != null) controller.close();
+        super.onDestroy();
     }
 }

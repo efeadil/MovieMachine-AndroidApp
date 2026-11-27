@@ -74,6 +74,7 @@ public class MovieListActivity extends AppCompatActivity {
             @Override
             public void onSuccess(List<Movie> movies) {
                 runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
                     rvPopular.setAdapter(new MovieAdapter(MovieListActivity.this, movies, MovieListActivity.this::openDetail));
                     loadRecommendations(apiKey);
                 });
@@ -81,7 +82,7 @@ public class MovieListActivity extends AppCompatActivity {
 
             @Override
             public void onError(String error) {
-                handleError(getString(R.string.error_popular_movies));
+                handleError(getString(R.string.error_popular_movies) + " " + error);
             }
         });
     }
@@ -91,6 +92,7 @@ public class MovieListActivity extends AppCompatActivity {
             @Override
             public void onSuccess(List<Movie> movies) {
                 runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
                     pbLoading.setVisibility(View.GONE);
                     rvRecommended.setAdapter(new MovieAdapter(MovieListActivity.this, movies, MovieListActivity.this::openDetail));
                 });
@@ -98,7 +100,7 @@ public class MovieListActivity extends AppCompatActivity {
 
             @Override
             public void onError(String error) {
-                runOnUiThread(() -> pbLoading.setVisibility(View.GONE));
+                handleError(getString(R.string.error_recommended_movies) + " " + error);
             }
         });
     }
@@ -116,8 +118,15 @@ public class MovieListActivity extends AppCompatActivity {
 
     private void handleError(String message) {
         runOnUiThread(() -> {
+            if (isFinishing() || isDestroyed()) return;
             pbLoading.setVisibility(View.GONE);
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
         });
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (controller != null) controller.close();
+        super.onDestroy();
     }
 }

@@ -2,7 +2,7 @@ package com.example.moviemachine;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -11,6 +11,8 @@ import com.example.moviemachine.Model.Movie;
 
 import org.json.JSONObject;
 import org.junit.Before;
+import org.junit.After;
+import org.json.JSONException;
 import org.junit.Test;
 
 import java.util.List;
@@ -25,6 +27,11 @@ public class MovieControllerTest {
     @Before
     public void setUp() {
         movieController = new MovieController();
+    }
+
+    @After
+    public void tearDown() {
+        movieController.close();
     }
 
     @Test
@@ -87,13 +94,13 @@ public class MovieControllerTest {
     }
 
     @Test
-    public void parseMovies_missingResultsKey_returnsEmptyList() {
-        assertTrue(movieController.parseMoviesFromJson("{}").isEmpty());
+    public void parseMovies_missingResultsKey_rejectsResponse() {
+        assertInvalidResponse("{}");
     }
 
     @Test
-    public void parseMovies_nullResults_returnsEmptyList() {
-        assertTrue(movieController.parseMoviesFromJson("{\"results\":null}").isEmpty());
+    public void parseMovies_nullResults_rejectsResponse() {
+        assertInvalidResponse("{\"results\":null}");
     }
 
     @Test
@@ -102,15 +109,51 @@ public class MovieControllerTest {
     }
 
     @Test
-    public void parseMovies_invalidJson_returnsEmptyList() {
-        assertNotNull(movieController.parseMoviesFromJson("Not a valid JSON string!"));
-        assertTrue(movieController.parseMoviesFromJson("Not a valid JSON string!").isEmpty());
+    public void parseMovies_invalidJson_rejectsResponse() {
+        assertInvalidResponse("Not a valid JSON string!");
+        assertInvalidResponse("{\"results\":[");
+        assertInvalidResponse("{\"results\":[]} trailing text");
     }
 
     @Test
-    public void parseMovies_nullInput_returnsEmptyList() {
-        assertNotNull(movieController.parseMoviesFromJson(null));
-        assertTrue(movieController.parseMoviesFromJson(null).isEmpty());
+    public void parseMovies_nullInput_rejectsResponse() {
+        assertInvalidResponse(null);
+        assertInvalidResponse("  ");
+    }
+
+    @Test
+    public void parseMovies_wrongResultsType_rejectsResponse() {
+        assertInvalidResponse("{\"results\":{}}");
+    }
+
+    @Test
+    public void parseMovies_invalidItem_rejectsEntireResponse() {
+        assertInvalidResponse("{\"results\":[{\"id\":1,\"title\":\"Valid\"},42]}");
+        assertInvalidResponse("{\"results\":[{\"title\":\"Missing ID\"}]}");
+    }
+
+    @Test
+    public void parseMovies_apiErrorEnvelope_rejectsResponse() {
+        assertInvalidResponse("{\"success\":false,\"results\":[]}");
+    }
+
+    @Test
+    public void parseMovies_multiSearch_excludesPeopleButKeepsTv() {
+        String json = "{\"results\":["
+                + "{\"id\":1,\"media_type\":\"person\",\"name\":\"Actor\"},"
+                + "{\"id\":2,\"media_type\":\"tv\",\"name\":\"Series\"},"
+                + "{\"id\":3,\"media_type\":\"movie\",\"title\":\"Film\"}]}";
+        List<Movie> movies = movieController.parseMoviesFromJson(json);
+        assertEquals(2, movies.size());
+        assertEquals("tv", movies.get(0).getMediaType());
+        assertEquals("Series", movies.get(0).getTitle());
+        assertEquals("movie", movies.get(1).getMediaType());
+    }
+
+    private void assertInvalidResponse(String json) {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> movieController.parseMoviesFromJson(json));
+        assertEquals("Invalid API response.", exception.getMessage());
     }
 
     @Test
@@ -168,6 +211,12 @@ public class MovieControllerTest {
     public void extractReviews_missingReviews_returnsNoReviewsMessage() throws Exception {
         assertEquals("No reviews available.",
                 movieController.extractReviews(new JSONObject("{}")));
+    }
+
+    @Test
+    public void extractReviews_invalidResults_rejectsResponse() throws Exception {
+        JSONObject json = new JSONObject("{\"reviews\":{\"results\":null}}");
+        assertThrows(JSONException.class, () -> movieController.extractReviews(json));
     }
 
     private static JSONObject reviewsJson(String author, String content) throws Exception {
